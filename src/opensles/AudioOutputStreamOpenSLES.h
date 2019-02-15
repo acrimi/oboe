@@ -50,6 +50,8 @@ public:
 
     ResultWithValue<FrameTimestamp> getTimestamp(clockid_t clockId) override;
 
+    ResultWithValue<double> calculateLatencyMillis() override;
+
 protected:
 
     void setFramesRead(int64_t framesRead);
@@ -81,6 +83,7 @@ private:
     JavaVM mJavaVM;
     AudioTrack * mAudioTrack = nullptr;
     int64_t mLastTimestampQuery = -1;
+    double mLastKnownLatency = -1;
 };
 
 } // namespace oboe

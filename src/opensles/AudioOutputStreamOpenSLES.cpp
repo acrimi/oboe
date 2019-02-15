@@ -495,3 +495,40 @@ bool AudioOutputStreamOpenSLES::canQueryTimestamp() {
     auto now = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
     return mLastTimestampQuery == -1 || now - mLastTimestampQuery > kMinTimestampQueryInterval;
 }
+
+ResultWithValue<double> AudioOutputStreamOpenSLES::calculateLatencyMillis() {
+    // Get the time that a known audio frame was presented.
+    int64_t hardwareFrameIndex;
+    int64_t hardwareFrameHardwareTime;
+    auto result = getTimestamp(CLOCK_MONOTONIC,
+                               &hardwareFrameIndex,
+                               &hardwareFrameHardwareTime);
+    if (result == oboe::Result::ErrorUnavailable && mLastKnownLatency != -1) {
+        // timestamp not available, or queried too recently
+        return ResultWithValue(mLastKnownLatency);
+    } else if (result != oboe::Result::OK) {
+        return {(result)};
+    }
+
+    // Get counter closest to the app.
+    int64_t appFrameIndex = getFramesWritten();
+
+    // Assume that the next frame will be processed at the current time
+    using namespace std::chrono;
+    int64_t appFrameAppTime =
+            duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+
+    // Calculate the number of frames between app and hardware
+    int64_t frameIndexDelta = appFrameIndex - hardwareFrameIndex;
+
+    // Calculate the time which the next frame will be or was presented
+    int64_t frameTimeDelta = (frameIndexDelta * oboe::kNanosPerSecond) / getSampleRate();
+    int64_t appFrameHardwareTime = hardwareFrameHardwareTime + frameTimeDelta;
+
+    // The current latency is the difference in time between when the current frame is at
+    // the app and when it is at the hardware.
+    auto latencyNanos = static_cast<double>(appFrameHardwareTime - appFrameAppTime);
+    mLastKnownLatency = latencyNanos / kNanosPerMillisecond;
+
+    return ResultWithValue<double>(mLastKnownLatency);
+}
