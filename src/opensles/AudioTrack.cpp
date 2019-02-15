@@ -24,11 +24,12 @@ AudioTrack::~AudioTrack() {
     }
 }
 
-ResultWithValue<AudioTimestamp> AudioTrack::getTimestamp() {
+ResultWithValue<FrameTimestamp> AudioTrack::getTimestamp() {
     JNIEnv* env;
     int envStat = mJavaVM.GetEnv((void **)&env, JNI_VERSION_1_6);
     if (envStat == JNI_EDETACHED) {
         // Cannot get JNIEnv on a thread that is not attached to the JVM
+        // Only call getTimestamp from threads that are already attached
         return oboe::Result::ErrorInvalidState;
     }
 
@@ -55,8 +56,9 @@ ResultWithValue<AudioTimestamp> AudioTrack::getTimestamp() {
         return ResultWithValue(Result::ErrorUnavailable);
     }
 
-    auto framePosition = (int64_t) env->GetLongField(mAudioTimestamp, mFramePositionField);
-    auto nanoTime = (int64_t) env->GetLongField(mAudioTimestamp, mNanoTimeField);
+    FrameTimestamp frame;
+    frame.position = (int64_t) env->GetLongField(mAudioTimestamp, mFramePositionField);
+    frame.timestamp = (int64_t) env->GetLongField(mAudioTimestamp, mNanoTimeField);
 
-    return ResultWithValue(new AudioTimestamp(framePosition, nanoTime));
+    return ResultWithValue(frame);
 }

@@ -10,22 +10,12 @@
 
 namespace oboe {
 
-struct AudioTimestamp {
-    int64_t framePosition;
-    int64_t nanoTime;
-
-    AudioTimestamp(int64_t framePosition, int64_t nanoTime) {
-        this->framePosition = framePosition;
-        this->nanoTime = nanoTime;
-    }
-};
-
 class AudioTrack {
 public:
     AudioTrack(const JavaVM &javaVM, jobject audioTrack);
     ~AudioTrack();
 
-    ResultWithValue<AudioTimestamp> getTimestamp();
+    ResultWithValue<FrameTimestamp> getTimestamp();
 
 private:
     // Cached JVM instance for retrieving JNIEnv
