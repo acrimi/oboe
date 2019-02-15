@@ -28,6 +28,8 @@
 
 using namespace oboe;
 
+static const int64_t kMinTimestampQueryInterval = 10; // 10 seconds
+
 static SLuint32 OpenSLES_convertOutputUsage(Usage oboeUsage) {
     SLuint32 openslStream = SL_ANDROID_STREAM_MEDIA;
     switch(oboeUsage) {
@@ -68,6 +70,10 @@ AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &b
 }
 
 AudioOutputStreamOpenSLES::~AudioOutputStreamOpenSLES() {
+    if (mAudioTrack != nullptr) {
+        delete mAudioTrack;
+        mAudioTrack = nullptr;
+    }
 }
 
 // These will wind up in <SLES/OpenSLES_Android.h>
@@ -200,6 +206,15 @@ Result AudioOutputStreamOpenSLES::open() {
                                                 sizeof(SLuint32));
         if (SL_RESULT_SUCCESS != result) {
             goto error;
+        }
+
+        jobject javaProxy;
+        result = (*configItf)->AcquireJavaProxy(configItf, SL_ANDROID_JAVA_PROXY_ROUTING, &javaProxy);
+
+        if (SL_RESULT_SUCCESS == result) {
+            mAudioTrack = new AudioTrack(mJavaVM, javaProxy);
+        } else {
+            LOGE("AcquireJavaProxy failed: %s", getSLErrStr(result));
         }
     }
 
@@ -433,4 +448,50 @@ Result AudioOutputStreamOpenSLES::updateServiceFrameCounter() {
         mPositionMillis.update32(msec);
     }
     return result;
+}
+
+Result AudioOutputStreamOpenSLES::getTimestamp(clockid_t clockId, int64_t *framePosition,
+                                               int64_t *timeNanoseconds) {
+    if (mAudioTrack == nullptr) {
+        return Result::ErrorNull;
+    }
+
+    if (!canQueryTimestamp()) {
+        return Result::ErrorUnavailable;
+    }
+
+    ResultWithValue<FrameTimestamp> result = mAudioTrack->getTimestamp();
+    using namespace std::chrono;
+    mLastTimestampQuery = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+
+    if (result != Result::OK) {
+        return result;
+    }
+
+    *framePosition = result.value().position;
+    *timeNanoseconds = result.value().timestamp;
+
+    return Result::OK;
+}
+
+ResultWithValue<FrameTimestamp> AudioOutputStreamOpenSLES::getTimestamp(clockid_t clockId) {
+    if (mAudioTrack == nullptr) {
+        return Result::ErrorNull;
+    }
+
+    if (!canQueryTimestamp()) {
+        return Result::ErrorUnavailable;
+    }
+
+    auto result = mAudioTrack->getTimestamp();
+    using namespace std::chrono;
+    mLastTimestampQuery = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+
+    return result;
+}
+
+bool AudioOutputStreamOpenSLES::canQueryTimestamp() {
+    using namespace std::chrono;
+    auto now = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+    return mLastTimestampQuery == -1 || now - mLastTimestampQuery > kMinTimestampQueryInterval;
 }
