@@ -30,7 +30,7 @@ ResultWithValue<FrameTimestamp> AudioTrack::getTimestamp() {
     if (envStat == JNI_EDETACHED) {
         // Cannot get JNIEnv on a thread that is not attached to the JVM
         // Only call getTimestamp from threads that are already attached
-        return oboe::Result::ErrorInvalidState;
+        return ResultWithValue<FrameTimestamp>(Result::ErrorInvalidState);
     }
 
     if (mAudioTimestampClass == nullptr) {
@@ -53,12 +53,12 @@ ResultWithValue<FrameTimestamp> AudioTrack::getTimestamp() {
     jboolean timestampAvailable = env->CallBooleanMethod(mAudioTrack, mGetTimestampID, mAudioTimestamp);
 
     if (timestampAvailable == JNI_FALSE) {
-        return ResultWithValue(Result::ErrorUnavailable);
+        return ResultWithValue<FrameTimestamp>(Result::ErrorUnavailable);
     }
 
     FrameTimestamp frame;
     frame.position = (int64_t) env->GetLongField(mAudioTimestamp, mFramePositionField);
     frame.timestamp = (int64_t) env->GetLongField(mAudioTimestamp, mNanoTimeField);
 
-    return ResultWithValue(frame);
+    return ResultWithValue<FrameTimestamp>(frame);
 }

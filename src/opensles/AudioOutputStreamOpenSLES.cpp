@@ -476,11 +476,11 @@ Result AudioOutputStreamOpenSLES::getTimestamp(clockid_t clockId, int64_t *frame
 
 ResultWithValue<FrameTimestamp> AudioOutputStreamOpenSLES::getTimestamp(clockid_t clockId) {
     if (mAudioTrack == nullptr) {
-        return Result::ErrorNull;
+        return ResultWithValue<FrameTimestamp>(Result::ErrorNull);
     }
 
     if (!canQueryTimestamp()) {
-        return Result::ErrorUnavailable;
+        return ResultWithValue<FrameTimestamp>(Result::ErrorUnavailable);
     }
 
     auto result = mAudioTrack->getTimestamp();
@@ -505,9 +505,9 @@ ResultWithValue<double> AudioOutputStreamOpenSLES::calculateLatencyMillis() {
                                &hardwareFrameHardwareTime);
     if (result == oboe::Result::ErrorUnavailable && mLastKnownLatency != -1) {
         // timestamp not available, or queried too recently
-        return ResultWithValue(mLastKnownLatency);
+        return ResultWithValue<double>(mLastKnownLatency);
     } else if (result != oboe::Result::OK) {
-        return {(result)};
+        return ResultWithValue<double>(result);
     }
 
     // Get counter closest to the app.
