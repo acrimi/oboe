@@ -32,7 +32,7 @@ namespace oboe {
 class AudioOutputStreamOpenSLES : public AudioStreamOpenSLES {
 public:
     AudioOutputStreamOpenSLES();
-    explicit AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder);
+    explicit AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder, const JavaVM &javaVM);
 
     virtual ~AudioOutputStreamOpenSLES();
 
@@ -70,6 +70,7 @@ private:
 
     SLPlayItf      mPlayInterface = nullptr;
 
+    JavaVM mJavaVM;
 };
 
 } // namespace oboe

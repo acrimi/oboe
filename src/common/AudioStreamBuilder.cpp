@@ -68,7 +68,7 @@ AudioStream *AudioStreamBuilder::build() {
         stream = new AudioStreamAAudio(*this);
     } else {
         if (getDirection() == oboe::Direction::Output) {
-            stream = new AudioOutputStreamOpenSLES(*this);
+            stream = new AudioOutputStreamOpenSLES(*this, mJavaVM);
         } else if (getDirection() == oboe::Direction::Input) {
             stream = new AudioInputStreamOpenSLES(*this);
         }

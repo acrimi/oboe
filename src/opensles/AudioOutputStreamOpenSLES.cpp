@@ -62,8 +62,9 @@ static SLuint32 OpenSLES_convertOutputUsage(Usage oboeUsage) {
     return openslStream;
 }
 
-AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder)
+AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder, const JavaVM &javaVM)
         : AudioStreamOpenSLES(builder) {
+    mJavaVM = javaVM;
 }
 
 AudioOutputStreamOpenSLES::~AudioOutputStreamOpenSLES() {
