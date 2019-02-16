@@ -12,14 +12,14 @@ namespace oboe {
 
 class AudioTrack {
 public:
-    AudioTrack(const JavaVM &javaVM, jobject audioTrack);
+    AudioTrack(JavaVM *javaVM, jobject audioTrack);
     ~AudioTrack();
 
     ResultWithValue<FrameTimestamp> getTimestamp();
 
 private:
     // Cached JVM instance for retrieving JNIEnv
-    JavaVM mJavaVM;
+    JavaVM *mJavaVM = nullptr;
 
     // Cached AudioTrack.java objects
     jclass mAudioTrackClass = nullptr;

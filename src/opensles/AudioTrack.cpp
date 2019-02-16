@@ -2,18 +2,19 @@
 // Created by Alex Crimi on 2/15/19.
 //
 
+#include <common/OboeDebug.h>
 #include "AudioTrack.h"
 
 using namespace oboe;
 
-AudioTrack::AudioTrack(const JavaVM &javaVM, jobject audioTrack) {
+AudioTrack::AudioTrack(JavaVM *javaVM, jobject audioTrack) {
     mJavaVM = javaVM;
     mAudioTrack = audioTrack;
 }
 
 AudioTrack::~AudioTrack() {
     JNIEnv* env = nullptr;
-    mJavaVM.GetEnv((void **)&env, JNI_VERSION_1_6);
+    mJavaVM->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (env != nullptr) {
         env->DeleteGlobalRef(mAudioTimestampClass);
         mAudioTimestampClass = nullptr;
@@ -25,8 +26,12 @@ AudioTrack::~AudioTrack() {
 }
 
 ResultWithValue<FrameTimestamp> AudioTrack::getTimestamp() {
+    if (mJavaVM == nullptr) {
+        return ResultWithValue<FrameTimestamp>(Result::ErrorNull);
+    }
+
     JNIEnv* env;
-    int envStat = mJavaVM.GetEnv((void **)&env, JNI_VERSION_1_6);
+    int envStat = mJavaVM->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (envStat == JNI_EDETACHED) {
         // Cannot get JNIEnv on a thread that is not attached to the JVM
         // Only call getTimestamp from threads that are already attached

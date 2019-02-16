@@ -313,7 +313,7 @@ public:
         return this;
     }
 
-    AudioStreamBuilder *setJavaVM(JavaVM &javaVM) {
+    AudioStreamBuilder *setJavaVM(JavaVM *javaVM) {
         mJavaVM = javaVM;
         return this;
     }
@@ -343,7 +343,7 @@ private:
 
     AudioApi       mAudioApi = AudioApi::Unspecified;
 
-    JavaVM mJavaVM;
+    JavaVM *mJavaVM;
 };
 
 } // namespace oboe
