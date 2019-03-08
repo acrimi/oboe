@@ -28,6 +28,8 @@
 
 using namespace oboe;
 
+static const int64_t kMinTimestampQueryInterval = 10; // 10 seconds
+
 static SLuint32 OpenSLES_convertOutputUsage(Usage oboeUsage) {
     SLuint32 openslStream = SL_ANDROID_STREAM_MEDIA;
     switch(oboeUsage) {
@@ -62,11 +64,16 @@ static SLuint32 OpenSLES_convertOutputUsage(Usage oboeUsage) {
     return openslStream;
 }
 
-AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder)
+AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder, JavaVM *javaVM)
         : AudioStreamOpenSLES(builder) {
+    mJavaVM = javaVM;
 }
 
 AudioOutputStreamOpenSLES::~AudioOutputStreamOpenSLES() {
+    if (mAudioTrack != nullptr) {
+        delete mAudioTrack;
+        mAudioTrack = nullptr;
+    }
 }
 
 // These will wind up in <SLES/OpenSLES_Android.h>
@@ -199,6 +206,15 @@ Result AudioOutputStreamOpenSLES::open() {
                                                 sizeof(SLuint32));
         if (SL_RESULT_SUCCESS != result) {
             goto error;
+        }
+
+        jobject javaProxy;
+        result = (*configItf)->AcquireJavaProxy(configItf, SL_ANDROID_JAVA_PROXY_ROUTING, &javaProxy);
+
+        if (SL_RESULT_SUCCESS == result) {
+            mAudioTrack = new AudioTrack(mJavaVM, javaProxy);
+        } else {
+            LOGE("AcquireJavaProxy failed: %s", getSLErrStr(result));
         }
     }
 
@@ -432,4 +448,87 @@ Result AudioOutputStreamOpenSLES::updateServiceFrameCounter() {
         mPositionMillis.update32(msec);
     }
     return result;
+}
+
+Result AudioOutputStreamOpenSLES::getTimestamp(clockid_t clockId, int64_t *framePosition,
+                                               int64_t *timeNanoseconds) {
+    if (mAudioTrack == nullptr) {
+        return Result::ErrorNull;
+    }
+
+    if (!canQueryTimestamp()) {
+        return Result::ErrorUnavailable;
+    }
+
+    ResultWithValue<FrameTimestamp> result = mAudioTrack->getTimestamp();
+    using namespace std::chrono;
+    mLastTimestampQuery = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+
+    if (result != Result::OK) {
+        return result;
+    }
+
+    *framePosition = result.value().position;
+    *timeNanoseconds = result.value().timestamp;
+
+    return Result::OK;
+}
+
+ResultWithValue<FrameTimestamp> AudioOutputStreamOpenSLES::getTimestamp(clockid_t clockId) {
+    if (mAudioTrack == nullptr) {
+        return ResultWithValue<FrameTimestamp>(Result::ErrorNull);
+    }
+
+    if (!canQueryTimestamp()) {
+        return ResultWithValue<FrameTimestamp>(Result::ErrorUnavailable);
+    }
+
+    auto result = mAudioTrack->getTimestamp();
+    using namespace std::chrono;
+    mLastTimestampQuery = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+
+    return result;
+}
+
+bool AudioOutputStreamOpenSLES::canQueryTimestamp() {
+    using namespace std::chrono;
+    auto now = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+    return mLastTimestampQuery == -1 || now - mLastTimestampQuery > kMinTimestampQueryInterval;
+}
+
+ResultWithValue<double> AudioOutputStreamOpenSLES::calculateLatencyMillis() {
+    // Get the time that a known audio frame was presented.
+    int64_t hardwareFrameIndex;
+    int64_t hardwareFrameHardwareTime;
+    auto result = getTimestamp(CLOCK_MONOTONIC,
+                               &hardwareFrameIndex,
+                               &hardwareFrameHardwareTime);
+    if (result == oboe::Result::ErrorUnavailable && mLastKnownLatency != -1) {
+        // timestamp not available, or queried too recently
+        return ResultWithValue<double>(mLastKnownLatency);
+    } else if (result != oboe::Result::OK) {
+        return ResultWithValue<double>(result);
+    }
+
+    // Get counter closest to the app.
+    int64_t appFrameIndex = getFramesWritten();
+
+    // Assume that the next frame will be processed at the current time
+    using namespace std::chrono;
+    int64_t appFrameAppTime =
+            duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+
+    // Calculate the number of frames between app and hardware
+    int64_t frameIndexDelta = appFrameIndex - hardwareFrameIndex;
+
+    // Calculate the time which the next frame will be or was presented
+    int64_t frameTimeDelta = (frameIndexDelta * oboe::kNanosPerSecond) / getSampleRate();
+    int64_t appFrameHardwareTime = hardwareFrameHardwareTime + frameTimeDelta;
+
+    // The current latency is the difference in time between when the current frame is at
+    // the app and when it is at the hardware.
+    auto latencyNanos = static_cast<double>(appFrameHardwareTime - appFrameAppTime);
+    mLastKnownLatency = latencyNanos / kNanosPerMillisecond;
+
+    return ResultWithValue<double>(mLastKnownLatency);
 }

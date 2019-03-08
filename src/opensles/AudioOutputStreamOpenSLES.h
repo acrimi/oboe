@@ -23,6 +23,7 @@
 
 #include "oboe/Oboe.h"
 #include "AudioStreamOpenSLES.h"
+#include "AudioTrack.h"
 
 namespace oboe {
 
@@ -32,7 +33,7 @@ namespace oboe {
 class AudioOutputStreamOpenSLES : public AudioStreamOpenSLES {
 public:
     AudioOutputStreamOpenSLES();
-    explicit AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder);
+    explicit AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder, JavaVM *javaVM);
 
     virtual ~AudioOutputStreamOpenSLES();
 
@@ -43,6 +44,13 @@ public:
     Result requestPause() override;
     Result requestFlush() override;
     Result requestStop() override;
+
+    Result
+    getTimestamp(clockid_t clockId, int64_t *framePosition, int64_t *timeNanoseconds) override;
+
+    ResultWithValue<FrameTimestamp> getTimestamp(clockid_t clockId) override;
+
+    ResultWithValue<double> calculateLatencyMillis() override;
 
 protected:
 
@@ -68,8 +76,14 @@ private:
      */
     Result setPlayState_l(SLuint32 newState);
 
+    bool canQueryTimestamp();
+
     SLPlayItf      mPlayInterface = nullptr;
 
+    JavaVM *mJavaVM = nullptr;
+    AudioTrack *mAudioTrack = nullptr;
+    int64_t mLastTimestampQuery = -1;
+    double mLastKnownLatency = -1;
 };
 
 } // namespace oboe

@@ -15,6 +15,7 @@ set (oboe_sources
         src/opensles/AudioOutputStreamOpenSLES.cpp
         src/opensles/AudioStreamBuffered.cpp
         src/opensles/AudioStreamOpenSLES.cpp
+        src/opensles/AudioTrack.cpp
         src/opensles/EngineOpenSLES.cpp
         src/opensles/OpenSLESUtilities.cpp
         src/opensles/OutputMixerOpenSLES.cpp
