@@ -313,11 +313,6 @@ public:
         return this;
     }
 
-    AudioStreamBuilder *setJavaVM(JavaVM *javaVM) {
-        mJavaVM = javaVM;
-        return this;
-    }
-
     /**
      * Create and open a stream object based on the current settings.
      *
@@ -342,8 +337,6 @@ private:
     oboe::AudioStream *build();
 
     AudioApi       mAudioApi = AudioApi::Unspecified;
-
-    JavaVM *mJavaVM;
 };
 
 } // namespace oboe
