@@ -64,9 +64,8 @@ static SLuint32 OpenSLES_convertOutputUsage(Usage oboeUsage) {
     return openslStream;
 }
 
-AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder, JavaVM *javaVM)
+AudioOutputStreamOpenSLES::AudioOutputStreamOpenSLES(const AudioStreamBuilder &builder)
         : AudioStreamOpenSLES(builder) {
-    mJavaVM = javaVM;
 }
 
 AudioOutputStreamOpenSLES::~AudioOutputStreamOpenSLES() {
@@ -212,7 +211,7 @@ Result AudioOutputStreamOpenSLES::open() {
         result = (*configItf)->AcquireJavaProxy(configItf, SL_ANDROID_JAVA_PROXY_ROUTING, &javaProxy);
 
         if (SL_RESULT_SUCCESS == result) {
-            mAudioTrack = new AudioTrack(mJavaVM, javaProxy);
+            mAudioTrack = new AudioTrack(getJavaVM(), javaProxy);
         } else {
             LOGE("AcquireJavaProxy failed: %s", getSLErrStr(result));
         }
