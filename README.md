@@ -1,3 +1,20 @@
+# About This Fork
+The purpose of this fork is to add support for output latency calculation using OpenSL ES on Android 7.0+. Usage is the same as the core Oboe library, with the addition that you should provide implementations of [JNI_OnLoad/JNI_OnUnload](https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/invocation.html#JNJI_OnLoad) and pass the associated JavaVM instance to Oboe:
+
+```
+#include "oboe/Jni.h"
+
+extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM * jvm, void * /*reserved*/) {
+  oboe::jniLoad(jvm);
+  return JNI_VERSION_1_6;
+}
+
+extern "C" JNIEXPORT jint JNICALL JNI_OnUnload(JavaVM * jvm, void * /*reserved*/) {
+  oboe::jniUnload();
+}
+```
+Oboe will cache the JavaVM internally and automatically use it to query timestamps via JNI for OpenSL ES output streams, adding support for [getTimestamp()](https://google.github.io/oboe/reference/classoboe_1_1_audio_stream.html#a1d7cf4e43fb9d7b31857a90d9eceee6d) and [calculateLatencyMillis()](https://google.github.io/oboe/reference/classoboe_1_1_audio_stream.html#ae023cb001f3261d064f423101798d6be) in AudioOutputStreamOpenSLES. Querying timestamps/latency is still not supported for input streams.
+
 # Oboe [![Build Status](https://travis-ci.org/google/oboe.svg?branch=master)](https://travis-ci.org/google/oboe)
 
 [![Introduction to Oboe video](docs/images/getting-started-video.jpg)](https://www.youtube.com/watch?v=csfHAbr5ilI&list=PLWz5rJ2EKKc_duWv9IPNvx9YBudNMmLSa)
