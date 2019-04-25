@@ -13,7 +13,9 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnUnload(JavaVM * jvm, void * /*reserved*/
   oboe::jniUnload();
 }
 ```
-Oboe will cache the JavaVM internally and automatically use it to query timestamps via JNI for OpenSL ES output streams, adding support for [getTimestamp()](https://google.github.io/oboe/reference/classoboe_1_1_audio_stream.html#a1d7cf4e43fb9d7b31857a90d9eceee6d) and [calculateLatencyMillis()](https://google.github.io/oboe/reference/classoboe_1_1_audio_stream.html#ae023cb001f3261d064f423101798d6be) in AudioOutputStreamOpenSLES. Querying timestamps/latency is still not supported for input streams.
+Oboe will cache the JavaVM internally and automatically use it to query timestamps via JNI for OpenSL ES output streams, adding support for [getTimestamp()](https://google.github.io/oboe/reference/classoboe_1_1_audio_stream.html#a1d7cf4e43fb9d7b31857a90d9eceee6d) and [calculateLatencyMillis()](https://google.github.io/oboe/reference/classoboe_1_1_audio_stream.html#ae023cb001f3261d064f423101798d6be) in AudioOutputStreamOpenSLES. **NOTE**: No logic is done internally to attach/detach threads to the JavaVM, so these methods should only be called on threads that are already [attached](https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/invocation.html#attaching_to_the_vm).
+
+Querying timestamps/latency is still not supported for input streams.
 
 # Oboe [![Build Status](https://travis-ci.org/google/oboe.svg?branch=master)](https://travis-ci.org/google/oboe)
 
